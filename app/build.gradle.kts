@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.google.play.services.ads)
     implementation(libs.google.user.messaging.platform)
+    implementation(libs.androidx.compose.foundation)
 
     ksp(libs.room.compiler)
     testImplementation(libs.junit)

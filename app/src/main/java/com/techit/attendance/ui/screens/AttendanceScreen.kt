@@ -18,6 +18,7 @@ import com.techit.attendance.data.entity.AttendanceEntity
 import com.techit.attendance.data.entity.StudentEntity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import com.techit.attendance.utils.getStartOfDay
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -446,13 +447,4 @@ fun DatePickerDialog(
             }
         }
     )
-}
-fun getStartOfDay(timestamp: Long): Long {
-    val calendar = Calendar.getInstance()
-    calendar.timeInMillis = timestamp
-    calendar.set(Calendar.HOUR_OF_DAY, 0)
-    calendar.set(Calendar.MINUTE, 0)
-    calendar.set(Calendar.SECOND, 0)
-    calendar.set(Calendar.MILLISECOND, 0)
-    return calendar.timeInMillis
 }

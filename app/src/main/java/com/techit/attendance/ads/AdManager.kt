@@ -13,9 +13,8 @@ class AdManager(private val context: Context) {
         private const val TAG = "AdManager"
 
         // TEST AD UNITS - Replace with your real ad unit IDs before publishing
-        const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111"
-        const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
-
+        const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111" // test ad
+        const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" //tes ad
         // Ad frequency control
         private var lastInterstitialTime: Long = 0
         private const val INTERSTITIAL_COOLDOWN_MS = 30000L // 30 seconds minimum between ads

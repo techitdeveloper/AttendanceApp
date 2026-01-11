@@ -6,10 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,9 +18,6 @@ import com.techit.attendance.ads.ConsentManager
 import com.techit.attendance.data.database.AppDatabase
 import com.techit.attendance.data.entity.ClassEntity
 import com.techit.attendance.data.model.ClassWithStatus
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -42,6 +36,10 @@ fun ClassListScreen(
     var showDialog by remember { mutableStateOf(false) }
     var className by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
+
+    // Analytics dialog state
+    var showAnalyticsDialog by remember { mutableStateOf(false) }
+    var selectedClassForAnalytics by remember { mutableStateOf<Pair<Int, String>?>(null) }
 
     val today = remember {
         val calendar = Calendar.getInstance()
@@ -94,7 +92,6 @@ fun ClassListScreen(
                                 onClick = {
                                     showMenu = false
                                     consentManager.showPrivacyOptionsForm(activity) { canRequestAds ->
-                                        // User changed consent settings
                                         if (canRequestAds) {
                                             adManager.enableAds()
                                             adManager.loadInterstitialAd()
@@ -117,7 +114,6 @@ fun ClassListScreen(
             }
         },
         bottomBar = {
-            // Banner Ad at bottom
             BannerAdView(adManager = adManager)
         }
     ) { padding ->
@@ -128,11 +124,27 @@ fun ClassListScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "No classes yet.\nTap + to add a class.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.School,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = "No classes yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Tap + to add your first class",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -140,15 +152,18 @@ fun ClassListScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(classStatusList) { classStatus ->
                     ClassItemWithStatus(
                         classStatus = classStatus,
                         onClick = { onClassClick(classStatus.classId) },
+                        onAnalytics = {
+                            selectedClassForAnalytics = Pair(classStatus.classId, classStatus.className)
+                            showAnalyticsDialog = true
+                        },
                         onDelete = {
                             scope.launch {
-                                // Find the actual ClassEntity to delete
                                 val classEntity = classes.find { it.id == classStatus.classId }
                                 classEntity?.let {
                                     database.classDao().deleteClass(it)
@@ -173,6 +188,7 @@ fun ClassListScreen(
                     value = className,
                     onValueChange = { className = it },
                     label = { Text("Class Name") },
+                    placeholder = { Text("e.g., Math 101, Physics A") },
                     singleLine = true
                 )
             },
@@ -188,7 +204,8 @@ fun ClassListScreen(
                                 showDialog = false
                             }
                         }
-                    }
+                    },
+                    enabled = className.isNotBlank()
                 ) {
                     Text("Add")
                 }
@@ -205,102 +222,161 @@ fun ClassListScreen(
             }
         )
     }
+
+    // Show analytics dialog
+    if (showAnalyticsDialog && selectedClassForAnalytics != null) {
+        ClassAnalyticsDialog(
+            database = database,
+            classId = selectedClassForAnalytics!!.first,
+            className = selectedClassForAnalytics!!.second,
+            onDismiss = {
+                showAnalyticsDialog = false
+                selectedClassForAnalytics = null
+            }
+        )
+    }
 }
 
 @Composable
 fun ClassItemWithStatus(
     classStatus: ClassWithStatus,
     onClick: () -> Unit,
+    onAnalytics: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showOptionsMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            // Header row with class name and menu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = classStatus.className,
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Show attendance status
-                if (classStatus.totalStudents == 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "No students added",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else if (classStatus.attendanceTaken) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Today: ${classStatus.todayPresent}/${classStatus.totalStudents} present",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    // Show percentage
-                    val percentage = if (classStatus.totalStudents > 0) {
-                        (classStatus.todayPresent.toFloat() / classStatus.totalStudents * 100)
-                    } else 0f
-
-                    Text(
-                        text = "Attendance: %.1f%%".format(percentage),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (percentage >= 75) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.error
+                IconButton(onClick = { showOptionsMenu = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More options"
                     )
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Today's attendance pending (${classStatus.totalStudents} students)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                }
+
+                DropdownMenu(
+                    expanded = showOptionsMenu,
+                    onDismissRequest = { showOptionsMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("View Analytics") },
+                        onClick = {
+                            showOptionsMenu = false
+                            onAnalytics()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Analytics, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete Class") },
+                        onClick = {
+                            showOptionsMenu = false
+                            showDeleteDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
                 }
             }
 
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete Class",
-                    tint = MaterialTheme.colorScheme.error
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Attendance status
+            if (classStatus.totalStudents == 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "No students added yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else if (classStatus.attendanceTaken) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Today: ${classStatus.todayPresent}/${classStatus.totalStudents} present",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                val percentage = if (classStatus.totalStudents > 0) {
+                    (classStatus.todayPresent.toFloat() / classStatus.totalStudents * 100)
+                } else 0f
+
+                Text(
+                    text = "%.1f%% attendance".format(percentage),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (percentage >= 75) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.error
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Today's attendance pending",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Text(
+                    text = "${classStatus.totalStudents} students waiting",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -309,18 +385,28 @@ fun ClassItemWithStatus(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Class") },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Delete Class?") },
             text = {
-                Text("Are you sure you want to delete ${classStatus.className}? This will delete all ${classStatus.totalStudents} students and their attendance records.")
+                Text("This will permanently delete ${classStatus.className} with all ${classStatus.totalStudents} students and their attendance records. This action cannot be undone.")
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onDelete()
                         showDeleteDialog = false
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete")
                 }
             },
             dismissButton = {

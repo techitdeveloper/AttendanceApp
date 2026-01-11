@@ -14,6 +14,7 @@ navigationCompose = "2.9.6"
 lifecycle = "2.6.2"
 admob = "22.6.0"
 ump = "2.2.0"
+foundation = "1.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +39,7 @@ androidx-compose-material-icons-extended = { module = "androidx.compose.material
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 google-play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "admob" }
 google-user-messaging-platform = { module = "com.google.android.ump:user-messaging-platform", version.ref = "ump" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
