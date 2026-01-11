@@ -46,6 +46,7 @@ fun NavGraph(
             StudentListScreen(
                 database = database,
                 classId = classId,
+                adManager = adManager,  // ADD THIS LINE
                 onMarkAttendance = {
                     navController.navigate(Screen.Attendance.createRoute(classId))
                 },

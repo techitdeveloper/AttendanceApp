@@ -222,7 +222,7 @@ fun ClassAnalyticsDialog(
                                         scope.launch {
                                             isExporting = true
                                             withContext(Dispatchers.IO) {
-                                                val file = CsvExportUtils.exportClassAnalyticsToCsv(
+                                                val uri = CsvExportUtils.exportClassAnalyticsToCsv(
                                                     context = context,
                                                     className = className,
                                                     totalStudents = data.totalStudents,
@@ -237,10 +237,10 @@ fun ClassAnalyticsDialog(
                                                 )
 
                                                 withContext(Dispatchers.Main) {
-                                                    if (file != null) {
+                                                    if (uri != null) {
                                                         Toast.makeText(
                                                             context,
-                                                            "Exported to Downloads/${file.name}",
+                                                            "Exported to Downloads",
                                                             Toast.LENGTH_LONG
                                                         ).show()
                                                     } else {
@@ -268,7 +268,7 @@ fun ClassAnalyticsDialog(
                                         scope.launch {
                                             isExporting = true
                                             withContext(Dispatchers.IO) {
-                                                val file = CsvExportUtils.exportClassAnalyticsToCsv(
+                                                val uri = CsvExportUtils.exportClassAnalyticsToCsv(
                                                     context = context,
                                                     className = className,
                                                     totalStudents = data.totalStudents,
@@ -283,8 +283,8 @@ fun ClassAnalyticsDialog(
                                                 )
 
                                                 withContext(Dispatchers.Main) {
-                                                    if (file != null) {
-                                                        CsvExportUtils.shareCsvFile(context, file)
+                                                    if (uri != null) {
+                                                        CsvExportUtils.shareCsvFile(context, uri)
                                                     } else {
                                                         Toast.makeText(
                                                             context,

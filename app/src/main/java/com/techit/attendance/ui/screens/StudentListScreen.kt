@@ -1,5 +1,6 @@
 package com.techit.attendance.ui.screens
 
+import android.app.Activity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.techit.attendance.ads.AdManager
+import com.techit.attendance.ads.BannerAdView
 import com.techit.attendance.data.database.AppDatabase
 import com.techit.attendance.data.entity.StudentEntity
 import kotlinx.coroutines.launch
@@ -22,6 +25,7 @@ import kotlinx.coroutines.launch
 fun StudentListScreen(
     database: AppDatabase,
     classId: Int,
+    adManager: AdManager,  // ADD THIS PARAMETER
     onMarkAttendance: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -67,6 +71,10 @@ fun StudentListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Student")
             }
+        },
+        bottomBar = {
+            // ADD BANNER AD HERE
+            BannerAdView(adManager = adManager)
         }
     ) { padding ->
         if (students.isEmpty()) {
