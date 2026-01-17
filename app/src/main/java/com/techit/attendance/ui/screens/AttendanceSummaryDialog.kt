@@ -118,8 +118,12 @@ fun AttendanceSummaryDialog(
             ) {
                 // Header with gradient background
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 3.dp
+                    color = MaterialTheme.colorScheme.surface,  // CHANGED
+                    tonalElevation = 3.dp,
+                    border = BorderStroke(  // ADD THIS
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -139,20 +143,21 @@ fun AttendanceSummaryDialog(
                                     Icon(
                                         Icons.Default.Assessment,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = MaterialTheme.colorScheme.primary,  // Keep primary
                                         modifier = Modifier.size(28.dp)
                                     )
                                     Text(
                                         "Attendance Summary",
                                         style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface  // ADD THIS if missing
                                     )
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     className,
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary  // Keep primary for accent
                                 )
                             }
 
@@ -164,7 +169,7 @@ fun AttendanceSummaryDialog(
                                     Icon(
                                         imageVector = Icons.Default.FileDownload,
                                         contentDescription = "Export",
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.onSurface  // CHANGED
                                     )
                                 }
 
@@ -249,7 +254,8 @@ fun AttendanceSummaryDialog(
                                 IconButton(onClick = onDismiss) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Close"
+                                        contentDescription = "Close",
+                                        tint = MaterialTheme.colorScheme.onSurface  // ADD THIS if missing
                                     )
                                 }
                             }
@@ -311,12 +317,13 @@ fun AttendanceSummaryDialog(
                                     Icons.Default.DateRange,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     "Date Range",
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface  // ADD THIS
                                 )
                             }
 
@@ -605,7 +612,8 @@ fun EnhancedSummaryItem(summary: StudentAttendanceSummary) {
                     Text(
                         text = initials,
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
+                        // CHANGED: Use surface color for better contrast
+                        color = MaterialTheme.colorScheme.surface,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -678,7 +686,12 @@ fun EnhancedSummaryItem(summary: StudentAttendanceSummary) {
                         text = "%.0f%%".format(summary.percentage),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        // CHANGED: Use proper on-color for contrast
+                        color = when {
+                            summary.percentage >= 90 -> MaterialTheme.colorScheme.onPrimary
+                            summary.percentage >= 75 -> MaterialTheme.colorScheme.onTertiary
+                            else -> MaterialTheme.colorScheme.onError
+                        }
                     )
                 }
             }
@@ -763,9 +776,16 @@ fun SmallStatItem(
 
 @Composable
 fun getSummaryColorForInitial(char: Char): Color {
+    // Use theme-aware colors
     val colors = listOf(
-        Color(0xFF1976D2), Color(0xFF388E3C), Color(0xFFD32F2F), Color(0xFFF57C00),
-        Color(0xFF7B1FA2), Color(0xFF0097A7), Color(0xFFC2185B), Color(0xFF5D4037),
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF00897B),
+        Color(0xFFE64A19),
+        Color(0xFF5E35B1),
+        Color(0xFFD84315),
     )
     return colors[(char.code % colors.size)]
 }

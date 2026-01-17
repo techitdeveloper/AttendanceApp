@@ -440,7 +440,7 @@ fun AnalyticsContent(
         // Overview metrics
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Column(
@@ -452,7 +452,8 @@ fun AnalyticsContent(
                 Text(
                     "Overview",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -472,17 +473,13 @@ fun AnalyticsContent(
                     Text(
                         "Average Attendance",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "%.1f%%".format(analytics.averageAttendance),
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
-                        color = when {
-                            analytics.averageAttendance >= 90 -> MaterialTheme.colorScheme.primary
-                            analytics.averageAttendance >= 75 -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.error
-                        }
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -500,7 +497,8 @@ fun AnalyticsContent(
                     Text(
                         "Performance Insights",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     // Best day
@@ -523,18 +521,19 @@ fun AnalyticsContent(
                                 Text(
                                     "Best Day",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     dateFormat.format(Date(analytics.bestDay.first)),
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
                         Text(
                             "%.1f%%".format(analytics.bestDay.second),
                             style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -591,7 +590,8 @@ fun AnalyticsContent(
                 Text(
                     "Student Distribution",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -625,12 +625,12 @@ fun MetricItem(
             value,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = valueColor
+            color = MaterialTheme.colorScheme.onSurface  // CHANGED from valueColor parameter
         )
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurface  // CHANGED from onSurfaceVariant
         )
     }
 }

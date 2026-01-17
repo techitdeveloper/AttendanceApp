@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -338,8 +339,14 @@ fun EnhancedClassCard(
     // Determine card color based on status
     val containerColor = when {
         classStatus.totalStudents == 0 -> MaterialTheme.colorScheme.surfaceVariant
-        classStatus.attendanceTaken -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.errorContainer
+        classStatus.attendanceTaken -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    val borderColor = when {
+        classStatus.totalStudents == 0 -> Color.Transparent
+        classStatus.attendanceTaken -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.error
     }
 
     Card(
@@ -349,7 +356,10 @@ fun EnhancedClassCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
-        )
+        ),
+        border = if (borderColor != Color.Transparent) {  // ADD THIS
+            BorderStroke(2.dp, borderColor)
+        } else null
     ) {
         Column(
             modifier = Modifier
@@ -377,6 +387,7 @@ fun EnhancedClassCard(
                             Text(
                                 text = classStatus.className.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                                 style = MaterialTheme.typography.titleLarge,
+                                // CHANGED: Use onPrimary for proper contrast
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.Bold
                             )
@@ -392,7 +403,7 @@ fun EnhancedClassCard(
                         Text(
                             text = "${classStatus.totalStudents} ${if (classStatus.totalStudents == 1) "student" else "students"}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurface  // CHANGED from onSurfaceVariant
                         )
                     }
                 }
@@ -448,7 +459,7 @@ fun EnhancedClassCard(
                         icon = Icons.Default.CheckCircle,
                         text = "Attendance marked today",
                         iconTint = MaterialTheme.colorScheme.primary,
-                        textColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        textColor = MaterialTheme.colorScheme.onSurface
                     )
 
                     Row(
@@ -580,7 +591,7 @@ fun AttendanceStatChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = color.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onSurface  // CHANGED from color.copy(alpha = 0.8f)
             )
         }
     }

@@ -269,18 +269,21 @@ fun AttendanceScreen(
 
             // Summary Card
             if (totalCount > 0) {
+                val summaryBorderColor = when {
+                    percentage >= 90 -> MaterialTheme.colorScheme.primary
+                    percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+                    percentage > 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.outline
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = when {
-                            percentage >= 90 -> MaterialTheme.colorScheme.primaryContainer
-                            percentage >= 75 -> MaterialTheme.colorScheme.tertiaryContainer
-                            percentage > 0 -> MaterialTheme.colorScheme.errorContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
-                    )
+                        containerColor = MaterialTheme.colorScheme.surface  // CHANGED - always surface
+                    ),
+                    border = BorderStroke(2.dp, summaryBorderColor)  // ADD THIS
                 ) {
                     Column(
                         modifier = Modifier
@@ -295,7 +298,7 @@ fun AttendanceScreen(
                             Text(
                                 text = "Attendance Summary",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Surface(
@@ -311,7 +314,13 @@ fun AttendanceScreen(
                                     text = "%.0f%%".format(percentage),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White,
+                                    // CHANGED: Use proper on-color
+                                    color = when {
+                                        percentage >= 90 -> MaterialTheme.colorScheme.onPrimary
+                                        percentage >= 75 -> MaterialTheme.colorScheme.onTertiary
+                                        percentage > 0 -> MaterialTheme.colorScheme.onError
+                                        else -> MaterialTheme.colorScheme.surface
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
@@ -511,7 +520,8 @@ fun EnhancedAttendanceItem(
                         Text(
                             text = initials,
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
+                            // CHANGED: Use surface color for better contrast
+                            color = MaterialTheme.colorScheme.surface,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -622,9 +632,16 @@ fun SummaryStatColumn(
 
 @Composable
 fun getAttendanceColorForInitial(char: Char): Color {
+    // Use theme-aware colors
     val colors = listOf(
-        Color(0xFF1976D2), Color(0xFF388E3C), Color(0xFFD32F2F), Color(0xFFF57C00),
-        Color(0xFF7B1FA2), Color(0xFF0097A7), Color(0xFFC2185B), Color(0xFF5D4037),
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF00897B),
+        Color(0xFFE64A19),
+        Color(0xFF5E35B1),
+        Color(0xFFD84315),
     )
     return colors[(char.code % colors.size)]
 }

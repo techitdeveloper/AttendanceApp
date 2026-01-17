@@ -366,17 +366,22 @@ fun EnhancedStudentCard(
     }
 
     // Determine card color based on attendance
-    val containerColor = when {
-        presentCount + absentCount == 0 -> MaterialTheme.colorScheme.surface
-        percentage >= 90 -> MaterialTheme.colorScheme.primaryContainer
-        percentage >= 75 -> MaterialTheme.colorScheme.tertiaryContainer
-        else -> MaterialTheme.colorScheme.errorContainer
+    val containerColor = MaterialTheme.colorScheme.surface  // Always use surface
+
+    val borderColor = when {
+        presentCount + absentCount == 0 -> Color.Transparent
+        percentage >= 90 -> MaterialTheme.colorScheme.primary
+        percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = if (borderColor != Color.Transparent) {  // ADD THIS
+            BorderStroke(2.dp, borderColor)
+        } else null
     ) {
         Row(
             modifier = Modifier
@@ -410,7 +415,8 @@ fun EnhancedStudentCard(
                         Text(
                             text = initials,
                             style = MaterialTheme.typography.titleLarge,
-                            color = Color.White,
+                            // CHANGED: Use contentColorFor to get proper contrast
+                            color = MaterialTheme.colorScheme.surface,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -473,7 +479,7 @@ fun EnhancedStudentCard(
                                 Text(
                                     text = "Attendance",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurface  // CHANGED from onSurfaceVariant
                                 )
                                 Text(
                                     text = "%.1f%%".format(percentage),
@@ -514,7 +520,7 @@ fun EnhancedStudentCard(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete Student",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error  // This should already be correct
                 )
             }
         }
@@ -577,7 +583,7 @@ fun AttendanceBadge(
         Text(
             text = "$count",
             style = MaterialTheme.typography.labelMedium,
-            color = color,
+            color = color,  // Keep the color for badges
             fontWeight = FontWeight.Bold
         )
     }
@@ -586,15 +592,16 @@ fun AttendanceBadge(
 // Generate consistent colors for student avatars
 @Composable
 fun getColorForInitial(char: Char): Color {
+    // Use theme-aware colors instead of hardcoded ones
     val colors = listOf(
-        Color(0xFF1976D2), // Blue
-        Color(0xFF388E3C), // Green
-        Color(0xFFD32F2F), // Red
-        Color(0xFFF57C00), // Orange
-        Color(0xFF7B1FA2), // Purple
-        Color(0xFF0097A7), // Cyan
-        Color(0xFFC2185B), // Pink
-        Color(0xFF5D4037), // Brown
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error,
+        Color(0xFF00897B), // Teal - works in both themes
+        Color(0xFFE64A19), // Deep Orange - works in both themes
+        Color(0xFF5E35B1), // Deep Purple - works in both themes
+        Color(0xFFD84315), // Brown - works in both themes
     )
     val index = (char.code % colors.size)
     return colors[index]
