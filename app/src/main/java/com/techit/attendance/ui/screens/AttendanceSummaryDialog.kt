@@ -2,19 +2,21 @@ package com.techit.attendance.ui.screens
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ fun AttendanceSummaryDialog(
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
     var showExportMenu by remember { mutableStateOf(false) }
+    var filterOption by remember { mutableStateOf<FilterOption?>(null) }
 
     fun loadSummary() {
         scope.launch {
@@ -74,14 +77,30 @@ fun AttendanceSummaryDialog(
                     absentDays = absent,
                     percentage = percentage
                 )
+            }.let { list ->
+                // Apply filter
+                when (filterOption) {
+                    FilterOption.EXCELLENT -> list.filter { it.percentage >= 90 }
+                    FilterOption.GOOD -> list.filter { it.percentage >= 75 && it.percentage < 90 }
+                    FilterOption.LOW -> list.filter { it.percentage < 75 }
+                    null -> list
+                }
             }
             isLoading = false
         }
     }
 
-    LaunchedEffect(startDate, endDate) {
+    LaunchedEffect(startDate, endDate, filterOption) {
         loadSummary()
     }
+
+    // Calculate overall stats
+    val avgAttendance = if (summaryList.isNotEmpty()) {
+        summaryList.map { it.percentage }.average().toFloat()
+    } else 0f
+    val excellentCount = summaryList.count { it.percentage >= 90 }
+    val goodCount = summaryList.count { it.percentage >= 75 && it.percentage < 90 }
+    val lowCount = summaryList.count { it.percentage < 75 }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -90,206 +109,326 @@ fun AttendanceSummaryDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.85f),
-            shape = MaterialTheme.shapes.large,
+                .fillMaxHeight(0.9f),
+            shape = MaterialTheme.shapes.extraLarge,
             tonalElevation = 6.dp
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Attendance Summary",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            className,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Row {
-                        // Export button
-                        IconButton(
-                            onClick = { showExportMenu = true },
-                            enabled = summaryList.isNotEmpty() && !isExporting
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "Export"
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showExportMenu,
-                            onDismissRequest = { showExportMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Export CSV") },
-                                onClick = {
-                                    showExportMenu = false
-                                    scope.launch {
-                                        isExporting = true
-                                        withContext(Dispatchers.IO) {
-                                            val uri = CsvExportUtils.exportStudentSummaryToCsv(
-                                                context = context,
-                                                className = className,
-                                                summaryList = summaryList,
-                                                startDate = startDate,
-                                                endDate = endDate
-                                            )
-
-                                            withContext(Dispatchers.Main) {
-                                                if (uri != null) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Exported to Downloads",
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Export failed",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                                isExporting = false
-                                            }
-                                        }
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.FileDownload, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Share CSV") },
-                                onClick = {
-                                    showExportMenu = false
-                                    scope.launch {
-                                        isExporting = true
-                                        withContext(Dispatchers.IO) {
-                                            val uri = CsvExportUtils.exportStudentSummaryToCsv(
-                                                context = context,
-                                                className = className,
-                                                summaryList = summaryList,
-                                                startDate = startDate,
-                                                endDate = endDate
-                                            )
-
-                                            withContext(Dispatchers.Main) {
-                                                if (uri != null) {
-                                                    CsvExportUtils.shareCsvFile(context, uri)
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Export failed",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                                isExporting = false
-                                            }
-                                        }
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Share, contentDescription = null)
-                                }
-                            )
-                        }
-
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close"
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Date Range Selector
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+                // Header with gradient background
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 3.dp
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(24.dp)
                     ) {
-                        Text(
-                            "Date Range",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = { showStartDatePicker = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        "From",
-                                        style = MaterialTheme.typography.labelSmall
+                                    Icon(
+                                        Icons.Default.Assessment,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(28.dp)
                                     )
                                     Text(
-                                        text = dateFormat.format(Date(startDate)),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                        "Attendance Summary",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    className,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
 
-                            Text(
-                                "—",
-                                modifier = Modifier.align(Alignment.CenterVertically),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            OutlinedButton(
-                                onClick = { showEndDatePicker = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(
+                                    onClick = { showExportMenu = true },
+                                    enabled = summaryList.isNotEmpty() && !isExporting
                                 ) {
-                                    Text(
-                                        "To",
-                                        style = MaterialTheme.typography.labelSmall
+                                    Icon(
+                                        imageVector = Icons.Default.FileDownload,
+                                        contentDescription = "Export",
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
-                                    Text(
-                                        text = dateFormat.format(Date(endDate)),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                }
+
+                                DropdownMenu(
+                                    expanded = showExportMenu,
+                                    onDismissRequest = { showExportMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Export CSV") },
+                                        onClick = {
+                                            showExportMenu = false
+                                            scope.launch {
+                                                isExporting = true
+                                                withContext(Dispatchers.IO) {
+                                                    val uri = CsvExportUtils.exportStudentSummaryToCsv(
+                                                        context = context,
+                                                        className = className,
+                                                        summaryList = summaryList,
+                                                        startDate = startDate,
+                                                        endDate = endDate
+                                                    )
+
+                                                    withContext(Dispatchers.Main) {
+                                                        if (uri != null) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Exported to Downloads",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        } else {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Export failed",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                        isExporting = false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.FileDownload, contentDescription = null)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Share CSV") },
+                                        onClick = {
+                                            showExportMenu = false
+                                            scope.launch {
+                                                isExporting = true
+                                                withContext(Dispatchers.IO) {
+                                                    val uri = CsvExportUtils.exportStudentSummaryToCsv(
+                                                        context = context,
+                                                        className = className,
+                                                        summaryList = summaryList,
+                                                        startDate = startDate,
+                                                        endDate = endDate
+                                                    )
+
+                                                    withContext(Dispatchers.Main) {
+                                                        if (uri != null) {
+                                                            CsvExportUtils.shareCsvFile(context, uri)
+                                                        } else {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Export failed",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                        isExporting = false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Share, contentDescription = null)
+                                        }
+                                    )
+                                }
+
+                                IconButton(onClick = onDismiss) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close"
                                     )
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Overall Stats Cards
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            MiniStatCard(
+                                value = "${summaryList.size}",
+                                label = "Students",
+                                icon = Icons.Default.Group,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            MiniStatCard(
+                                value = "%.0f%%".format(avgAttendance),
+                                label = "Avg Rate",
+                                icon = Icons.Default.TrendingUp,
+                                color = when {
+                                    avgAttendance >= 90 -> MaterialTheme.colorScheme.primary
+                                    avgAttendance >= 75 -> MaterialTheme.colorScheme.tertiary
+                                    else -> MaterialTheme.colorScheme.error
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Date Range & Filters
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Date Range Selector
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "Date Range",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
 
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { showStartDatePicker = true },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "From",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = dateFormat.format(Date(startDate)),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+
+                                Icon(
+                                    Icons.Default.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterVertically)
+                                        .size(20.dp)
+                                )
+
+                                OutlinedButton(
+                                    onClick = { showEndDatePicker = true },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "To",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = dateFormat.format(Date(endDate)),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Filter chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),  // Add this
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = filterOption == null,
+                            onClick = { filterOption = null },
+                            label = { Text("All (${ students.size})") },
+                            leadingIcon = if (filterOption == null) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            } else null
+                        )
+                        FilterChip(
+                            selected = filterOption == FilterOption.EXCELLENT,
+                            onClick = { filterOption = FilterOption.EXCELLENT },
+                            label = { Text("≥90% ($excellentCount)") },
+                            leadingIcon = if (filterOption == FilterOption.EXCELLENT) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            } else null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                        FilterChip(
+                            selected = filterOption == FilterOption.GOOD,
+                            onClick = { filterOption = FilterOption.GOOD },
+                            label = { Text("75-89% ($goodCount)") },
+                            leadingIcon = if (filterOption == FilterOption.GOOD) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            } else null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        )
+                        FilterChip(
+                            selected = filterOption == FilterOption.LOW,
+                            onClick = { filterOption = FilterOption.LOW },
+                            label = { Text("<75% ($lowCount)") },
+                            leadingIcon = if (filterOption == FilterOption.LOW) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            } else null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        )
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Content
                 if (isLoading) {
                     Box(
                         modifier = Modifier
@@ -316,140 +455,275 @@ fun AttendanceSummaryDialog(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "No students in this class",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.SearchOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                if (filterOption != null) "No students match this filter" else "No attendance data",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(summaryList) { summary ->
-                            SummaryItem(summary)
+                        items(summaryList, key = { it.studentId }) { summary ->
+                            EnhancedSummaryItem(summary)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Close button
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
+                // Bottom Action
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp
                 ) {
-                    Text("Close")
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .height(56.dp)
+                    ) {
+                        Text("Close", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
     }
 
-    // Start Date Picker
+    // Date Pickers
     if (showStartDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
         DatePickerDialog(
-            currentDate = startDate,
-            maxDate = endDate, // Can't select start date after end date
-            onDateSelected = { date ->
-                startDate = date
-                showStartDatePicker = false
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        if (it <= endDate) {
+                            startDate = getStartOfDay(it)
+                        }
+                    }
+                    showStartDatePicker = false
+                }) {
+                    Text("OK")
+                }
             },
-            onDismiss = { showStartDatePicker = false }
-        )
+            dismissButton = {
+                TextButton(onClick = { showStartDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 
-    // End Date Picker
     if (showEndDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate)
         DatePickerDialog(
-            currentDate = endDate,
-            minDate = startDate, // Can't select end date before start date
-            onDateSelected = { date ->
-                endDate = date
-                showEndDatePicker = false
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        if (it >= startDate) {
+                            endDate = getEndOfDay(it)
+                        }
+                    }
+                    showEndDatePicker = false
+                }) {
+                    Text("OK")
+                }
             },
-            onDismiss = { showEndDatePicker = false }
-        )
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }
 
 @Composable
-fun SummaryItem(summary: StudentAttendanceSummary) {
+fun EnhancedSummaryItem(summary: StudentAttendanceSummary) {
+    val initials = summary.studentName
+        .split(" ")
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }
+
+    val avatarColor = getSummaryColorForInitial(initials.firstOrNull() ?: '?')
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                summary.percentage >= 90 -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                summary.percentage >= 75 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+            }
+        ),
+        border = BorderStroke(
+            2.dp,
+            when {
+                summary.percentage >= 90 -> MaterialTheme.colorScheme.primary
+                summary.percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.error
+            }
+        )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Student name and roll
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Avatar
+            Surface(
+                shape = CircleShape,
+                color = avatarColor,
+                modifier = Modifier.size(56.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text = summary.studentName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        text = initials,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
-                    if (summary.rollIdentifier != null) {
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = summary.studentName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (summary.rollIdentifier != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Tag,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Text(
-                            text = "Roll: ${summary.rollIdentifier}",
+                            text = summary.rollIdentifier,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // Percentage badge
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = when {
-                        summary.percentage >= 90 -> MaterialTheme.colorScheme.primaryContainer
-                        summary.percentage >= 75 -> MaterialTheme.colorScheme.tertiaryContainer
-                        else -> MaterialTheme.colorScheme.errorContainer
-                    }
+                Spacer(Modifier.height(8.dp))
+
+                // Stats row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "%.1f%%".format(summary.percentage),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            summary.percentage >= 90 -> MaterialTheme.colorScheme.onPrimaryContainer
-                            summary.percentage >= 75 -> MaterialTheme.colorScheme.onTertiaryContainer
-                            else -> MaterialTheme.colorScheme.onErrorContainer
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    SmallStatItem(
+                        icon = Icons.Default.CheckCircle,
+                        value = "${summary.presentDays}",
+                        label = "Present",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    SmallStatItem(
+                        icon = Icons.Default.Cancel,
+                        value = "${summary.absentDays}",
+                        label = "Absent",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    SmallStatItem(
+                        icon = Icons.Default.CalendarMonth,
+                        value = "${summary.totalDays}",
+                        label = "Days",
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+            // Percentage badge
+            Surface(
+                shape = CircleShape,
+                color = when {
+                    summary.percentage >= 90 -> MaterialTheme.colorScheme.primary
+                    summary.percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.size(64.dp)
             ) {
-                StatItem(
-                    label = "Present",
-                    value = "${summary.presentDays}",
-                    color = MaterialTheme.colorScheme.primary
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "%.0f%%".format(summary.percentage),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MiniStatCard(
+    value: String,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(24.dp)
+            )
+            Column {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = color
                 )
-                StatItem(
-                    label = "Absent",
-                    value = "${summary.absentDays}",
-                    color = MaterialTheme.colorScheme.error
-                )
-                StatItem(
-                    label = "Total",
-                    value = "${summary.totalDays}",
-                    color = MaterialTheme.colorScheme.onSurface
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -457,17 +731,25 @@ fun SummaryItem(summary: StudentAttendanceSummary) {
 }
 
 @Composable
-fun StatItem(
-    label: String,
+fun SmallStatItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     value: String,
+    label: String,
     color: androidx.compose.ui.graphics.Color
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = color
+        )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = color
         )
@@ -479,190 +761,17 @@ fun StatItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DatePickerDialog(
-    currentDate: Long,
-    minDate: Long? = null,
-    maxDate: Long? = null,
-    onDateSelected: (Long) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val calendar = Calendar.getInstance()
-    calendar.timeInMillis = currentDate
-
-    var selectedYear by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
-    var selectedMonth by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
-    var selectedDay by remember { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH)) }
-
-    val today = Calendar.getInstance()
-    val maxYear = today.get(Calendar.YEAR)
-    val minYear = maxYear - 5
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Date") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Year Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Year:",
-                        modifier = Modifier.width(60.dp),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    var yearExpanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = yearExpanded,
-                        onExpandedChange = { yearExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = selectedYear.toString(),
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = yearExpanded,
-                            onDismissRequest = { yearExpanded = false }
-                        ) {
-                            (minYear..maxYear).reversed().forEach { year ->
-                                DropdownMenuItem(
-                                    text = { Text(year.toString()) },
-                                    onClick = {
-                                        selectedYear = year
-                                        yearExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Month Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Month:",
-                        modifier = Modifier.width(60.dp),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    var monthExpanded by remember { mutableStateOf(false) }
-                    val months = listOf(
-                        "January", "February", "March", "April", "May", "June",
-                        "July", "August", "September", "October", "November", "December"
-                    )
-                    ExposedDropdownMenuBox(
-                        expanded = monthExpanded,
-                        onExpandedChange = { monthExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = months[selectedMonth],
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = monthExpanded,
-                            onDismissRequest = { monthExpanded = false }
-                        ) {
-                            months.forEachIndexed { index, month ->
-                                DropdownMenuItem(
-                                    text = { Text(month) },
-                                    onClick = {
-                                        selectedMonth = index
-                                        monthExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Day Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Day:",
-                        modifier = Modifier.width(60.dp),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    var dayExpanded by remember { mutableStateOf(false) }
-                    val maxDays = Calendar.getInstance().apply {
-                        set(Calendar.YEAR, selectedYear)
-                        set(Calendar.MONTH, selectedMonth)
-                    }.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-                    ExposedDropdownMenuBox(
-                        expanded = dayExpanded,
-                        onExpandedChange = { dayExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = selectedDay.toString(),
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = dayExpanded,
-                            onDismissRequest = { dayExpanded = false },
-                            modifier = Modifier.heightIn(max = 200.dp)
-                        ) {
-                            (1..maxDays).forEach { day ->
-                                DropdownMenuItem(
-                                    text = { Text(day.toString()) },
-                                    onClick = {
-                                        selectedDay = day
-                                        dayExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val newCalendar = Calendar.getInstance()
-                    newCalendar.set(selectedYear, selectedMonth, selectedDay, 0, 0, 0)
-                    newCalendar.set(Calendar.MILLISECOND, 0)
-                    val newDate = newCalendar.timeInMillis
-
-                    // Validate against min/max dates
-                    val isValid = (minDate == null || newDate >= minDate) &&
-                            (maxDate == null || newDate <= maxDate) &&
-                            newDate <= System.currentTimeMillis()
-
-                    if (isValid) {
-                        onDateSelected(getStartOfDay(newDate))
-                    }
-                }
-            ) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
+fun getSummaryColorForInitial(char: Char): Color {
+    val colors = listOf(
+        Color(0xFF1976D2), Color(0xFF388E3C), Color(0xFFD32F2F), Color(0xFFF57C00),
+        Color(0xFF7B1FA2), Color(0xFF0097A7), Color(0xFFC2185B), Color(0xFF5D4037),
     )
+    return colors[(char.code % colors.size)]
+}
+
+enum class FilterOption {
+    EXCELLENT,  // >= 90%
+    GOOD,       // 75-89%
+    LOW         // < 75%
 }

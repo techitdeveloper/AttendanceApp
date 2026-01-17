@@ -15,7 +15,12 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("studentId"), Index("date")]
+    // FIXED: Add unique index on (studentId, date) to prevent duplicates
+    indices = [
+        Index("studentId"),
+        Index("date"),
+        Index(value = ["studentId", "date"], unique = true)
+    ]
 )
 data class AttendanceEntity(
     @PrimaryKey(autoGenerate = true)

@@ -1,18 +1,24 @@
 package com.techit.attendance.ui.screens
 
-import android.app.Activity
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.techit.attendance.ads.AdManager
 import com.techit.attendance.ads.BannerAdView
@@ -25,7 +31,7 @@ import kotlinx.coroutines.launch
 fun StudentListScreen(
     database: AppDatabase,
     classId: Int,
-    adManager: AdManager,  // ADD THIS PARAMETER
+    adManager: AdManager,
     onMarkAttendance: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -36,6 +42,8 @@ fun StudentListScreen(
     var studentName by remember { mutableStateOf("") }
     var rollNumber by remember { mutableStateOf("") }
     var showSummary by remember { mutableStateOf(false) }
+    var showSnackbar by remember { mutableStateOf(false) }
+    var snackbarMessage by remember { mutableStateOf("") }
 
     LaunchedEffect(classId) {
         className = database.classDao().getClassById(classId)?.name ?: "Students"
@@ -44,7 +52,16 @@ fun StudentListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(className) },
+                title = {
+                    Column {
+                        Text(className)
+                        Text(
+                            text = "${students.size} ${if (students.size == 1) "student" else "students"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -53,42 +70,158 @@ fun StudentListScreen(
                 actions = {
                     if (students.isNotEmpty()) {
                         IconButton(onClick = { showSummary = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Summary")
-                        }
-                        Button(
-                            onClick = onMarkAttendance,
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Text("Mark Attendance")
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = "Summary",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showDialog = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Student")
+            if (students.isNotEmpty()) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Mark Attendance FAB
+                    FloatingActionButton(
+                        onClick = onMarkAttendance,
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Mark Attendance")
+                    }
+
+                    // Add Student FAB
+                    SmallFloatingActionButton(
+                        onClick = { showDialog = true },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add Student",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            } else {
+                FloatingActionButton(
+                    onClick = { showDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Student")
+                }
             }
         },
         bottomBar = {
-            // ADD BANNER AD HERE
-            BannerAdView(adManager = adManager)
+            Column {
+                // Action bar when students exist
+                if (students.isNotEmpty()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        tonalElevation = 3.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = onMarkAttendance,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Mark Attendance")
+                            }
+                        }
+                    }
+                }
+                BannerAdView(adManager = adManager)
+            }
+        },
+        snackbarHost = {
+            if (showSnackbar) {
+                Snackbar(
+                    modifier = Modifier.padding(16.dp),
+                    action = {
+                        TextButton(onClick = { showSnackbar = false }) {
+                            Text("OK")
+                        }
+                    }
+                ) {
+                    Text(snackbarMessage)
+                }
+            }
         }
     ) { padding ->
         if (students.isEmpty()) {
+            // Enhanced Empty State
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "No students yet.\nTap + to add a student.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                ) {
+                    // Animated icon
+                    val infiniteTransition = rememberInfiniteTransition(label = "scale")
+                    val scale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "scale"
+                    )
+
+                    Icon(
+                        Icons.Default.PersonAdd,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .scale(scale),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    )
+
+                    Text(
+                        text = "No Students Yet",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Text(
+                        text = "Add students to $className to start tracking their attendance",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Button(
+                        onClick = { showDialog = true },
+                        modifier = Modifier.height(56.dp)
+                    ) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add Your First Student", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
             }
         } else {
             LazyColumn(
@@ -96,15 +229,17 @@ fun StudentListScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(students) { student ->
-                    StudentItem(
+                items(students, key = { it.id }) { student ->
+                    EnhancedStudentCard(
                         student = student,
                         database = database,
                         onDelete = {
                             scope.launch {
                                 database.studentDao().deleteStudent(student)
+                                snackbarMessage = "${student.name} removed"
+                                showSnackbar = true
                             }
                         }
                     )
@@ -113,6 +248,7 @@ fun StudentListScreen(
         }
     }
 
+    // Add Student Dialog - Enhanced
     if (showDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -120,25 +256,48 @@ fun StudentListScreen(
                 studentName = ""
                 rollNumber = ""
             },
+            icon = {
+                Icon(
+                    Icons.Default.PersonAdd,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
             title = { Text("Add Student") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Enter student details",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedTextField(
                         value = studentName,
                         onValueChange = { studentName = it },
-                        label = { Text("Student Name") },
-                        singleLine = true
+                        label = { Text("Student Name *") },
+                        placeholder = { Text("e.g., John Doe") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = null)
+                        }
                     )
                     OutlinedTextField(
                         value = rollNumber,
                         onValueChange = { rollNumber = it },
                         label = { Text("Roll Number (Optional)") },
-                        singleLine = true
+                        placeholder = { Text("e.g., 101, A-25") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = {
+                            Icon(Icons.Default.Tag, contentDescription = null)
+                        }
                     )
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         if (studentName.isNotBlank()) {
                             scope.launch {
@@ -149,14 +308,17 @@ fun StudentListScreen(
                                         rollIdentifier = rollNumber.trim().ifBlank { null }
                                     )
                                 )
+                                snackbarMessage = "${studentName.trim()} added to $className"
+                                showSnackbar = true
                                 studentName = ""
                                 rollNumber = ""
                                 showDialog = false
                             }
                         }
-                    }
+                    },
+                    enabled = studentName.isNotBlank()
                 ) {
-                    Text("Add")
+                    Text("Add Student")
                 }
             },
             dismissButton = {
@@ -173,6 +335,7 @@ fun StudentListScreen(
         )
     }
 
+    // Summary Dialog
     if (showSummary) {
         AttendanceSummaryDialog(
             database = database,
@@ -185,7 +348,7 @@ fun StudentListScreen(
 }
 
 @Composable
-fun StudentItem(
+fun EnhancedStudentCard(
     student: StudentEntity,
     database: AppDatabase,
     onDelete: () -> Unit
@@ -202,8 +365,18 @@ fun StudentItem(
         percentage = if (total > 0) (presentCount.toFloat() / total * 100) else 0f
     }
 
+    // Determine card color based on attendance
+    val containerColor = when {
+        presentCount + absentCount == 0 -> MaterialTheme.colorScheme.surface
+        percentage >= 90 -> MaterialTheme.colorScheme.primaryContainer
+        percentage >= 75 -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.errorContainer
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -212,32 +385,131 @@ fun StudentItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = student.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (student.rollIdentifier != null) {
-                    Text(
-                        text = "Roll: ${student.rollIdentifier}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Student Avatar with Initials
+                val initials = student.name
+                    .split(" ")
+                    .take(2)
+                    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                    .joinToString("")
+                    .ifEmpty { "?" }
+
+                val avatarColor = getColorForInitial(initials.firstOrNull() ?: '?')
+
+                Surface(
+                    shape = CircleShape,
+                    color = avatarColor,
+                    modifier = Modifier.size(56.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = initials,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-                Text(
-                    text = "Present: $presentCount | Absent: $absentCount",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                if (presentCount + absentCount > 0) {
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Attendance: %.1f%%".format(percentage),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (percentage >= 75) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.error
+                        text = student.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
+
+                    if (student.rollIdentifier != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Tag,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Roll: ${student.rollIdentifier}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // Attendance Stats
+                    if (presentCount + absentCount > 0) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AttendanceBadge(
+                                icon = Icons.Default.CheckCircle,
+                                count = presentCount,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            AttendanceBadge(
+                                icon = Icons.Default.Cancel,
+                                count = absentCount,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+
+                        // Percentage bar
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Attendance",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "%.1f%%".format(percentage),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = when {
+                                        percentage >= 90 -> MaterialTheme.colorScheme.primary
+                                        percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.error
+                                    }
+                                )
+                            }
+
+                            LinearProgressIndicator(
+                                progress = { percentage / 100f },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp),
+                                color = when {
+                                    percentage >= 90 -> MaterialTheme.colorScheme.primary
+                                    percentage >= 75 -> MaterialTheme.colorScheme.tertiary
+                                    else -> MaterialTheme.colorScheme.error
+                                },
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "No attendance records yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
+
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
                     Icons.Default.Delete,
@@ -248,19 +520,33 @@ fun StudentItem(
         }
     }
 
+    // Delete Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Student") },
-            text = { Text("Are you sure you want to delete ${student.name}? This will also delete all attendance records.") },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Delete Student?") },
+            text = {
+                Text("Are you sure you want to remove ${student.name}? This will delete all attendance records for this student. This action cannot be undone.")
+            },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         onDelete()
                         showDeleteDialog = false
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete")
                 }
             },
             dismissButton = {
@@ -270,4 +556,46 @@ fun StudentItem(
             }
         )
     }
+}
+
+@Composable
+fun AttendanceBadge(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    count: Int,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = color
+        )
+        Text(
+            text = "$count",
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+// Generate consistent colors for student avatars
+@Composable
+fun getColorForInitial(char: Char): Color {
+    val colors = listOf(
+        Color(0xFF1976D2), // Blue
+        Color(0xFF388E3C), // Green
+        Color(0xFFD32F2F), // Red
+        Color(0xFFF57C00), // Orange
+        Color(0xFF7B1FA2), // Purple
+        Color(0xFF0097A7), // Cyan
+        Color(0xFFC2185B), // Pink
+        Color(0xFF5D4037), // Brown
+    )
+    val index = (char.code % colors.size)
+    return colors[index]
 }
