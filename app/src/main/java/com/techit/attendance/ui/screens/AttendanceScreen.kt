@@ -151,7 +151,7 @@ fun AttendanceScreen(
                                     showSuccessMessage = true
 
                                     // Show interstitial ad after successful save
-                                    adManager.showInterstitialAd(activity)
+                                    // adManager.showInterstitialAd(activity)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -426,6 +426,7 @@ fun AttendanceScreen(
     if (showSuccessMessage) {
         LaunchedEffect(Unit) {
             kotlinx.coroutines.delay(2000)
+            adManager.showInterstitialAd(activity)
             showSuccessMessage = false
             onBack()
         }

@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.google.android.gms.ads.MobileAds
-import com.google.android.ump.ConsentDebugSettings
-import com.google.android.ump.ConsentForm
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
@@ -14,8 +12,6 @@ class ConsentManager(private val context: Context) {
 
     private val consentInformation: ConsentInformation =
         UserMessagingPlatform.getConsentInformation(context)
-
-    private var consentForm: ConsentForm? = null
 
     companion object {
         private const val TAG = "ConsentManager"
@@ -49,16 +45,7 @@ class ConsentManager(private val context: Context) {
         activity: Activity,
         onConsentGatheringComplete: (canRequestAds: Boolean) -> Unit
     ) {
-        // For testing, you can set debug geography
-        // Remove this in production!
-        val debugSettings = ConsentDebugSettings.Builder(context)
-             .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
-             .addTestDeviceHashedId("YOUR_TEST_DEVICE_ID") // Add your test device
-            .build()
-
-        val params = ConsentRequestParameters.Builder()
-            .setConsentDebugSettings(debugSettings)
-            .build()
+        val params = ConsentRequestParameters.Builder().build()
 
         // Request consent information update
         consentInformation.requestConsentInfoUpdate(
@@ -134,14 +121,5 @@ class ConsentManager(private val context: Context) {
 
             isMobileAdsInitialized = true
         }
-    }
-
-    /**
-     * Reset consent for testing purposes
-     * REMOVE THIS IN PRODUCTION
-     */
-    fun resetConsentForTesting() {
-        consentInformation.reset()
-        isMobileAdsInitialized = false
     }
 }
